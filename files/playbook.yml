@@ -1,0 +1,106 @@
+---
+- hosts: all
+  remote_user: root
+  tasks:
+  - name: ensure system packages are at the latest version
+    apt: pkg={{item}} state=latest update_cache=yes cache_valid_time=3600
+    with_items:
+    - git
+    - python
+    - python-pip 
+    - monit
+    become: yes 
+
+  - name: Set UTC timezone
+    timezone: 
+     name: Etc/UTC
+    become: yes
+
+  - name: ensure virtualenv is at the latest version
+    pip: name=virtualenv state=latest
+    become: yes
+
+  - name: ensure /webapps/logs directory exists
+    file: path=/webapps/logs state=directory owner=ubuntu group=ubuntu
+    become: yes 
+
+  - name: ensure /webapps/ has correct ownership
+    file: dest=/webapps/ owner=ubuntu group=ubuntu mode=0755 recurse=yes
+    become: yes   
+
+  - name: ensure code is downloaded
+    git: repo=https://bitbucket.org/azneita/devops-challenge.git dest=/webapps/devops accept_hostkey=yes
+    become: yes
+    ignore_errors: true
+
+  - name: ensure flask-quickstart requirements are installed into flask-quickstart virtualenv
+    pip: requirements=/webapps/devops/requirements.txt 
+    become : yes
+
+  - name: Install Gunicorn
+    pip:
+     name: gunicorn
+    become: yes
+
+  - name: copying webapp initd service file
+    copy:
+     src: webapp
+     dest: /etc/init.d/webapp
+     remote_src: no
+     owner: root
+     group: root
+     mode: 0755
+    become: yes
+
+  - name: Copying monitrc config
+    copy:
+     src: monitrc
+     dest: /etc/monit/monitrc
+     remote_src: no
+     owner: root
+     group: root
+     mode: 0600    
+    become: yes
+    notify:
+      - restart monit  
+
+  - name: Copying monit config file for webapp
+    copy:
+     src: webapp_monit
+     dest: /etc/monit/conf.d/webapp
+     remote_src: no
+     owner: root
+     group: root
+     mode: 0744
+    become: yes
+    notify:
+      - restart monit    
+
+  - name: Copying logrotate file for webapp
+    copy:
+     src: webapp_logrotate
+     dest: /etc/logrotate.d/webapp
+     remote_src: no
+     owner: root
+     group: root
+     mode: 0644
+    become: yes
+
+  - name: Start service webapp, if not started
+    service:
+     name: webapp
+     enabled: yes
+     state: started
+    become: yes 
+
+  - name: Start service monit, if not started
+    service:
+     name: monit
+     enabled: yes
+     state: started
+    become: yes 
+
+  handlers:
+    - name: restart monit
+      service: name=monit state=restarted
+      become: yes

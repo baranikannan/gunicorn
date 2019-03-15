@@ -1,0 +1,12 @@
+/webapps/logs/*.log  {
+        daily
+    missingok
+    rotate 14
+    compress
+    notifempty
+    create 0644 ubuntu ubuntu
+    sharedscripts
+    postrotate
+        service webapp restart 
+    endscript
+}

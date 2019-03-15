@@ -1,0 +1,45 @@
+#! /bin/bash
+
+#
+APPNAME=app
+USER=ubuntu
+GROUP=ubuntu
+PATH=/bin:/usr/bin:/sbin:/usr/sbin:/usr/local/bin
+ACTIVATE=/webapps/devops
+APPMODULE=app:app
+DAEMON=gunicorn
+BIND=0.0.0.0:80
+PIDFILE=/webapps/logs/gunicorn.pid
+LOGFILE=/webapps/logs/$APPNAME.log
+ACCLOGFILE=/webapps/logs/"access-"$APPNAME.log
+WORKERS=`nproc`
+
+. /lib/lsb/init-functions
+
+
+case "$1" in
+  start)
+        log_daemon_msg "Starting deferred execution scheduler" "$APPNAME"
+        cd $ACTIVATE
+        $DAEMON --daemon --bind=$BIND --pid=$PIDFILE --workers=$WORKERS --user=$USER --group=$GROUP --log-file=$LOGFILE --access-logfile $ACCLOGFILE $APPMODULE 
+        log_end_msg $?
+    ;;
+  stop)
+        log_daemon_msg "Stopping deferred execution scheduler" "$APPNAME"
+        killproc -p $PIDFILE $DAEMON
+        log_end_msg $?
+    ;;
+  force-reload|restart)
+    $0 stop
+    $0 start
+    ;;
+  status)
+    status_of_proc -p $PIDFILE $DAEMON && exit 0 || exit $?
+    ;;
+  *)
+    echo "Usage: /etc/init.d/$APPNAME {start|stop|restart|force-reload|status}"
+    exit 1
+    ;;
+esac
+
+exit 0
